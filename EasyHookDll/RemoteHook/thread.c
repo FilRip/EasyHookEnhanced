@@ -731,6 +731,9 @@ Parameters:
 
 	ucAllocatedPEHeader = (PUCHAR)malloc(1000 * sizeof(UCHAR));
 
+    if (ucAllocatedPEHeader == 0)
+        return FALSE;
+
     memset(ExportDirectory, 0, sizeof(IMAGE_EXPORT_DIRECTORY));
 
 
@@ -1010,10 +1013,6 @@ Example:
 
     return NULL;
 }
-
-
-
-
 
 EASYHOOK_NT_EXPORT RhInjectLibrary(
 		ULONG InTargetPID,
@@ -1306,11 +1305,11 @@ Returns:
 	}
 	else
 	{
-		if (!RTL_SUCCESS(NtCreateThreadEx(hProc, (LPTHREAD_START_ROUTINE)RemoteInjectCode, RemoteInfo, FALSE, &hRemoteThread)))
+		if ((!RTL_SUCCESS(NtCreateThreadEx(hProc, (LPTHREAD_START_ROUTINE)RemoteInjectCode, RemoteInfo, FALSE, &hRemoteThread))) &&
+            ((hRemoteThread = CreateRemoteThread(hProc, NULL, 0, (LPTHREAD_START_ROUTINE)RemoteInjectCode, RemoteInfo, 0, NULL)) == NULL))
 		{
 			// create remote thread and wait for injection completion
-			if ((hRemoteThread = CreateRemoteThread(hProc, NULL, 0, (LPTHREAD_START_ROUTINE)RemoteInjectCode, RemoteInfo, 0, NULL)) == NULL)
-				THROW(STATUS_ACCESS_DENIED, L"Unable to create remote thread.")
+			THROW(STATUS_ACCESS_DENIED, L"Unable to create remote thread.")
 		}
 	}
 
@@ -1340,41 +1339,40 @@ Returns:
 		case 0x40000000:
             THROW(STATUS_INTERNAL_ERROR, L"Unable to find EasyHook library in target process context.")
 		case 0xF0000000: // error in C++ injection completion
+			switch(Code & 0xFF)
 			{
-				switch(Code & 0xFF)
-				{
-#ifdef _M_X64
+    #ifdef _M_X64
                 case 20:
                     THROW(STATUS_INVALID_PARAMETER_5, L"Unable to load the given 64-bit library into target process.")
                 case 21:
                     THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required native entry point in the given 64-bit library.")
                 case 12:
                     THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required managed entry point in the given 64-bit library.")
-#else
+    #else
                 case 20:
                     THROW(STATUS_INVALID_PARAMETER_4, L"Unable to load the given 32-bit library into target process.")
                 case 21:
                     THROW(STATUS_INVALID_PARAMETER_4, L"Unable to find the required native entry point in the given 32-bit library.")
                 case 12:
                     THROW(STATUS_INVALID_PARAMETER_4, L"Unable to find the required managed entry point in the given 32-bit library.")
-#endif
+    #endif
                 
                 case 13:
                     THROW(STATUS_DLL_INIT_FAILED, L"The user defined managed entry point failed in the target process. Make sure that EasyHook is registered in the GAC. Refer to event logs for more information.")
-				case 1:
+			    case 1:
                     THROW(STATUS_INTERNAL_ERROR, L"Unable to allocate memory in target process.")
-				case 2:
+			    case 2:
                     THROW(STATUS_INTERNAL_ERROR, L"Unable to adjust target's PATH variable.")
                 case 10:
                     THROW(STATUS_INTERNAL_ERROR, L"Unable to load 'mscoree.dll' into target process.")
-				case 11:
+			    case 11:
                     THROW(STATUS_INTERNAL_ERROR, L"Unable to bind NET Runtime to target process.")
-				case 22:
+			    case 22:
                     THROW(STATUS_INTERNAL_ERROR, L"Unable to signal remote event.")
-				default:
+			    default:
                     THROW(STATUS_INTERNAL_ERROR, L"Unknown error in injected C++ completion routine.")
-				}
-			}break;
+			}
+            break;
 		case 0:
 			THROW(STATUS_INTERNAL_ERROR, L"C++ completion routine has returned success but didn't raise the remote event.")
 		default:

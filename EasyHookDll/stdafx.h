@@ -41,12 +41,12 @@ __pragma(warning(pop))
 #pragma warning(disable:4127) // conditional expression is constant
 
 
-#include <windows.h>
+#include <Windows.h>
 #include <winnt.h>
 #include <winternl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tlhelp32.h>
+#include <TLHelp32.h>
 #include <strsafe.h>
 #include <crtdbg.h>
 
@@ -58,7 +58,7 @@ __pragma(warning(pop))
 extern "C"{
 #endif
 
-#include "EasyHook.h"
+#include "easyhook.h"
 #include "DriverShared.h"
 
 BOOL RtlFileExists(WCHAR* InPath);

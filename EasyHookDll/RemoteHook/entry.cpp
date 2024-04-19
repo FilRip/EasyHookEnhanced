@@ -74,19 +74,20 @@ Description:
     ULONG		            ErrorCode = 0;
     HMODULE                 hUserLib = LoadLibraryW(InInfo->UserLibrary);
 	REMOTE_ENTRY_INFO       EntryInfo = {};
-    REMOTE_ENTRY_POINT*     EntryProc = (REMOTE_ENTRY_POINT*)GetProcAddress(
+
+	if (hUserLib == nullptr)
+	{
+		ErrorCode = (20 & 0xFF) | 0xF0000000;
+		return ErrorCode;
+	}
+
+	auto EntryProc = (REMOTE_ENTRY_POINT*)GetProcAddress(
                                 hUserLib,
 #ifdef _M_X64
                                 "NativeInjectionEntryPoint");
 #else
                                 "_NativeInjectionEntryPoint@4");
 #endif
-
-    if (hUserLib == nullptr)
-	{
-		ErrorCode = (20 & 0xFF) | 0xF0000000;
-		return ErrorCode;
-	}
 
     if (EntryProc == nullptr)
 	{
@@ -109,6 +110,30 @@ Description:
     EntryProc(&EntryInfo);
 
     return ERROR_SUCCESS;
+}
+
+static DWORD AbortError(int code, ICLRMetaHost* meta, ICLRRuntimeInfo* info, ICLRRuntimeHost* runtime, HMODULE msCoree)
+{
+	// release resources
+	// We do not unload userLib as it is a .NET assembly
+	// and cannot be completely unloaded due to the CLR
+	// maintaining a reference to it.
+	// Trying to free the library will result in subsequent
+	// injections to the same process failing (usually by the
+	// third attempt)
+	//if (userLib != NULL)
+	//    FreeLibrary(userLib);
+	if (meta != nullptr)
+		meta->Release();
+	if (info != nullptr)
+		info->Release();
+	if (runtime != nullptr)
+		runtime->Release();
+
+	if (msCoree != nullptr)
+		FreeLibrary(msCoree);
+
+	return (code & 0xFF) | 0xF0000000;
 }
 
 EASYHOOK_NT_INTERNAL CompleteManagedInjection(LPREMOTE_INFO InInfo)
@@ -175,12 +200,12 @@ Description:
 			if (!RTL_SUCCESS(RetVal = userLibLoad(ParamString)))
 			{
 				DEBUGOUT("Failed to call Loader.Load");
-				UNMANAGED_ERROR(15)
+				return AbortError(15, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE);
 			}
 
 			// Set and close event, the host will now stop waiting for the injection to complete
 			if (!SetEvent(InInfo->hRemoteSignal))
-				UNMANAGED_ERROR(22)
+				return AbortError(22, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE);
 			CloseHandle(InInfo->hRemoteSignal);
 			InInfo->hRemoteSignal = nullptr;
 
@@ -205,9 +230,8 @@ Description:
 		if (hMsCorEE != nullptr)
 			CLRCreateInstance = (PROC_CLRCreateInstance*)GetProcAddress(hMsCorEE, "CLRCreateInstance"); // .NET 4.0+ framework creation method
 
-
 		if (CLRCreateInstance == nullptr)
-			UNMANAGED_ERROR(10) // mscoree.dll does not exist or does not expose either of the framework creation methods
+			return AbortError(10, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE); // mscoree.dll does not exist or does not expose either of the framework creation methods
 
 		// Attempt to use .NET 3.5/4 runtime object creation method rather than deprecated .NET 2.0 CorBindToRuntime
 		if (FAILED(CLRCreateInstance(CLSID_CLRMetaHost, IID_ICLRMetaHost, (LPVOID*)&MetaClrHost)))
@@ -273,15 +297,15 @@ Description:
 				ParamString,
 				&RetVal)))
 		{
-			UNMANAGED_ERROR(14) // Execution under both .NET 4 and .NET 2/3.5 failed (new ErrorCode: 14, for EasyHook 2.7)
+			return AbortError(14, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE); // Execution under both .NET 4 and .NET 2/3.5 failed (new ErrorCode: 14, for EasyHook 2.7)
 		}
 
 		if (!RetVal)
-			UNMANAGED_ERROR(13)
+			return AbortError(13, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE);
 
 		// set and close event
 		if (!SetEvent(InInfo->hRemoteSignal))
-			UNMANAGED_ERROR(22)
+			return AbortError(22, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE);
 
 		CloseHandle(InInfo->hRemoteSignal);
 
@@ -295,30 +319,11 @@ Description:
 			ParamString,
 			&RetVal);
 	}
-ABORT_ERROR:
 
-    // release resources
-    // We do not unload userLib as it is a .NET assembly
-	// and cannot be completely unloaded due to the CLR
-	// maintaining a reference to it.
-	// Trying to free the library will result in subsequent
-	// injections to the same process failing (usually by the
-	// third attempt)
-    //if (userLib != NULL)
-    //    FreeLibrary(userLib);
-    if (MetaClrHost != nullptr)
-        MetaClrHost->Release();
-    if (RuntimeInfo  != nullptr)
-        RuntimeInfo->Release();
-    if (RuntimeClrHost != nullptr)
-        RuntimeClrHost->Release();
-
-    if (hMsCorEE != nullptr)
-        FreeLibrary(hMsCorEE);
+	AbortError(0, MetaClrHost, RuntimeInfo, RuntimeClrHost, hMsCorEE);
 
     return ErrorCode;
 }
-
 
 EASYHOOK_NT_EXPORT HookCompleteInjection(LPREMOTE_INFO InInfo)
 {

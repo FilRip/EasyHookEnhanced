@@ -12,6 +12,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToInject", "ToInject\ToInject.csproj", "{FA91F1F8-005A-4F4C-BBD9-EA3BCEACFC45}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyLoad", "EasyLoad\EasyLoad.csproj", "{A563904A-09F4-40AB-AE16-9EC9B488EAE5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D087E484-DBC9-4A2E-8368-C1D0E524994D} = {D087E484-DBC9-4A2E-8368-C1D0E524994D}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyHook", "EasyHook\EasyHook.csproj", "{AB53862B-3B5C-4EFC-9787-1F01199EBFBF}"
 EndProject
