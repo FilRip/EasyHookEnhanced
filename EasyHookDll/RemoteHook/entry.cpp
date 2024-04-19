@@ -73,7 +73,7 @@ Description:
 */
     ULONG		            ErrorCode = 0;
     HMODULE                 hUserLib = LoadLibraryW(InInfo->UserLibrary);
-    REMOTE_ENTRY_INFO       EntryInfo;
+	REMOTE_ENTRY_INFO       EntryInfo = {};
     REMOTE_ENTRY_POINT*     EntryProc = (REMOTE_ENTRY_POINT*)GetProcAddress(
                                 hUserLib,
 #ifdef _M_X64
@@ -83,14 +83,23 @@ Description:
 #endif
 
     if (hUserLib == nullptr)
-        UNMANAGED_ERROR(20)
+	{
+		ErrorCode = (20 & 0xFF) | 0xF0000000;
+		return ErrorCode;
+	}
 
     if (EntryProc == nullptr)
-        UNMANAGED_ERROR(21)
+	{
+		ErrorCode = (21 & 0xFF) | 0xF0000000;
+		return ErrorCode;
+	}
 
     // set and close event
     if (!SetEvent(InInfo->hRemoteSignal))
-        UNMANAGED_ERROR(22)
+	{
+		ErrorCode = (22 & 0xFF) | 0xF0000000;
+		return ErrorCode;
+	}
 
     // invoke user defined entry point
     EntryInfo.HostPID = InInfo->HostProcess;
@@ -100,10 +109,6 @@ Description:
     EntryProc(&EntryInfo);
 
     return ERROR_SUCCESS;
-
-ABORT_ERROR:
-
-    return ErrorCode;
 }
 
 EASYHOOK_NT_INTERNAL CompleteManagedInjection(LPREMOTE_INFO InInfo)
@@ -128,7 +133,7 @@ Description:
 
 	DWORD					ErrorCode = 0;
     WCHAR                   ParamString[MAX_PATH];
-    REMOTE_ENTRY_INFO       EntryInfo;
+	REMOTE_ENTRY_INFO       EntryInfo = {};
 
     // Support for loading EasyLoad32/64.dll
     HMODULE					userLib = GetModuleHandleW(InInfo->UserLibrary);
@@ -190,14 +195,15 @@ Description:
 			}
         __except(EXCEPTION_EXECUTE_HANDLER)
         {
-            goto ABORT_ERROR;
+			// Nothing to do
         }
 	}
     // Backup method of manually preparing the .NET environment
 	else // useLibLoad == NULL
 	{
         hMsCorEE = LoadLibraryA("mscoree.dll");
-        CLRCreateInstance = (PROC_CLRCreateInstance*)GetProcAddress(hMsCorEE, "CLRCreateInstance"); // .NET 4.0+ framework creation method
+		if (hMsCorEE != nullptr)
+			CLRCreateInstance = (PROC_CLRCreateInstance*)GetProcAddress(hMsCorEE, "CLRCreateInstance"); // .NET 4.0+ framework creation method
 
 
 		if (CLRCreateInstance == nullptr)
@@ -359,29 +365,43 @@ Description:
 	EnvSize = GetEnvironmentVariableW(L"PATH", nullptr, 0) + DirSize;
 
 	if ((PATH = (wchar_t*)RtlAllocateMemory(TRUE, EnvSize * 2 + 10)) == nullptr)
-		UNMANAGED_ERROR(1)
+	{
+		ErrorCode = (1 & 0xFF) | 0xF0000000;
+	}
+	else
+	{
+		GetEnvironmentVariableW(L"PATH", PATH, EnvSize);
 
-	GetEnvironmentVariableW(L"PATH", PATH, EnvSize);
+		// add library path to environment variable
+		if (!RtlMoveMemory(PATH + DirSize, PATH, (EnvSize - DirSize) * 2))
+		{
+			ErrorCode = (1 & 0xFF) | 0xF0000000;
+		}
+		else
+		{
+			RtlCopyMemory(PATH, InInfo->PATH, DirSize * 2);
 
-	// add library path to environment variable
-	if (!RtlMoveMemory(PATH + DirSize, PATH, (EnvSize - DirSize) * 2))
-        UNMANAGED_ERROR(1)
-
-	RtlCopyMemory(PATH, InInfo->PATH, DirSize * 2);
-
-	if (!SetEnvironmentVariableW(L"PATH", PATH))
-		UNMANAGED_ERROR(2)
-
-    if (!RTL_SUCCESS(RhSetWakeUpThreadID(InInfo->WakeUpThreadID)))
-        UNMANAGED_ERROR(3)
-
-	// load and execute user library...
-	if (InInfo->IsManaged)
-        ErrorCode = CompleteManagedInjection(InInfo);
-    else
-        ErrorCode = CompleteUnmanagedInjection(InInfo);
-
-ABORT_ERROR:
+			if (!SetEnvironmentVariableW(L"PATH", PATH))
+			{
+				ErrorCode = (2 & 0xFF) | 0xF0000000;
+			}
+			else
+			{
+				if (!RTL_SUCCESS(RhSetWakeUpThreadID(InInfo->WakeUpThreadID)))
+				{
+					ErrorCode = (3 & 0xFF) | 0xF0000000;
+				}
+				else
+				{
+					// load and execute user library...
+					if (InInfo->IsManaged)
+						ErrorCode = CompleteManagedInjection(InInfo);
+					else
+						ErrorCode = CompleteUnmanagedInjection(InInfo);
+				}
+			}
+		}
+	}
 
     // release resources
 	if (PATH != nullptr)

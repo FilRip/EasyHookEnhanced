@@ -41,58 +41,67 @@ typedef struct _INTERNAL_CONTEXT_{
 
 extern "C" __declspec(dllexport) void __stdcall GacReleaseContext(LPINTERNAL_CONTEXT* RefContext){
 
-	if (*RefContext == NULL)
+	if (*RefContext == nullptr)
 		return;
 
 	LPINTERNAL_CONTEXT	Context = *RefContext;
 
-	if (Context->hFusionDll != NULL)
+	if (Context->hFusionDll != nullptr)
 		FreeLibrary(Context->hFusionDll);
 
-	if (Context->hMsCorEE != NULL)
+	if (Context->hMsCorEE != nullptr)
 		FreeLibrary(Context->hMsCorEE);
 
 	memset(Context, 0, sizeof(INTERNAL_CONTEXT));
 
 	RtlFreeMemory(Context);
 
-	*RefContext = NULL;
+	*RefContext = nullptr;
 }
 
 extern "C" int __cdecl main(int argc, char** argw){ return 0; }
 
 extern "C" __declspec(dllexport) LPINTERNAL_CONTEXT __stdcall GacCreateContext(){
-	LPINTERNAL_CONTEXT	Result = NULL;
+	LPINTERNAL_CONTEXT	Result = nullptr;
 
-	if ((Result = (LPINTERNAL_CONTEXT)RtlAllocateMemory(TRUE, sizeof(INTERNAL_CONTEXT))) == NULL)
-		return NULL;
+	if ((Result = (LPINTERNAL_CONTEXT)RtlAllocateMemory(TRUE, sizeof(INTERNAL_CONTEXT))) == nullptr)
+		return nullptr;
 
 	memset(Result, 0, sizeof(INTERNAL_CONTEXT));
 
-	if ((Result->hMsCorEE = LoadLibrary(L"mscoree.dll")) == NULL)
-		goto ERROR_ABORT;
+	if ((Result->hMsCorEE = LoadLibrary(L"mscoree.dll")) == nullptr)
+	{
+		GacReleaseContext(&Result);
+		return nullptr;
+	}
 
-	if ((Result->LoadLibraryShim = (LoadLibraryShim_PROC)GetProcAddress(Result->hMsCorEE, "LoadLibraryShim")) == NULL)
-		goto ERROR_ABORT;
+	if ((Result->LoadLibraryShim = (LoadLibraryShim_PROC)GetProcAddress(Result->hMsCorEE, "LoadLibraryShim")) == nullptr)
+	{
+		GacReleaseContext(&Result);
+		return nullptr;
+	}
 
-	Result->LoadLibraryShim(L"fusion.dll", 0, 0, &Result->hFusionDll);
+	Result->LoadLibraryShim(L"fusion.dll", nullptr, nullptr, &Result->hFusionDll);
 
-	if (Result->hFusionDll == NULL)
-		goto ERROR_ABORT;
+	if (Result->hFusionDll == nullptr)
+	{
+		GacReleaseContext(&Result);
+		return nullptr;
+	}
 
-	if ((Result->CreateAssemblyCache = (CreateAsmCache)GetProcAddress(Result->hFusionDll, "CreateAssemblyCache")) == NULL)
-		goto ERROR_ABORT;
+	if ((Result->CreateAssemblyCache = (CreateAsmCache)GetProcAddress(Result->hFusionDll, "CreateAssemblyCache")) == nullptr)
+	{
+		GacReleaseContext(&Result);
+		return nullptr;
+	}
 
 	if (!SUCCEEDED(Result->CreateAssemblyCache(&Result->Cache, 0)))
-		goto ERROR_ABORT;
+	{
+		GacReleaseContext(&Result);
+		return nullptr;
+	}
 
 	return Result;
-
-ERROR_ABORT:
-	
-	GacReleaseContext(&Result);
-
-	return NULL;
 }
 
 extern "C" __declspec(dllexport) BOOL __stdcall GacInstallAssembly(
@@ -142,7 +151,7 @@ extern "C" __declspec(dllexport) BOOL __stdcall GacUninstallAssembly(
 		return FALSE;
 
 	// uninstall assembly with given parameters
-	if (!SUCCEEDED(Cache->UninstallAssembly(0, InAssemblyName, &InstallInfo, NULL)))
+	if (!SUCCEEDED(Cache->UninstallAssembly(0, InAssemblyName, &InstallInfo, nullptr)))
 		return FALSE;
 
 	return TRUE;

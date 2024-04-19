@@ -36,14 +36,14 @@ void RtlAcquireLock(RTL_SPIN_LOCK* InLock)
 {
     EnterCriticalSection(&InLock->Lock);
 
-    ASSERT(!InLock->IsOwned,L"memory.c - !InLock->IsOwned");
+    ASSERT(!InLock->IsOwned,L"memory.c - !InLock->IsOwned")
 
     InLock->IsOwned = TRUE;
 }
 
 void RtlReleaseLock(RTL_SPIN_LOCK* InLock)
 {
-    ASSERT(InLock->IsOwned,L"memory.c - InLock->IsOwned");
+    ASSERT(InLock->IsOwned,L"memory.c - InLock->IsOwned")
 
     InLock->IsOwned = FALSE;
 
@@ -52,7 +52,7 @@ void RtlReleaseLock(RTL_SPIN_LOCK* InLock)
 
 void RtlDeleteLock(RTL_SPIN_LOCK* InLock)
 {
-    ASSERT(!InLock->IsOwned,L"memory.c - InLock->IsOwned");
+    ASSERT(!InLock->IsOwned,L"memory.c - InLock->IsOwned")
 
     DeleteCriticalSection(&InLock->Lock);
 }
@@ -68,11 +68,10 @@ void RtlCopyMemory(
             PVOID InSource,
             ULONG InByteCount)
 {
-    ULONG       Index;
     UCHAR*      Dest = (UCHAR*)InDest;
-    UCHAR*      Src = (UCHAR*)InSource;
+    const UCHAR*      Src = (UCHAR*)InSource;
 
-    for (Index = 0; Index < InByteCount; Index++)
+    for (ULONG Index = 0; Index < InByteCount; Index++)
     {
         *Dest = *Src;
 
@@ -105,10 +104,9 @@ void RtlZeroMemory(
             PVOID InTarget,
             ULONG InByteCount)
 {
-    ULONG           Index;
     UCHAR*          Target = (UCHAR*)InTarget;
 
-    for (Index = 0; Index < InByteCount; Index++)
+    for (ULONG Index = 0; Index < InByteCount; Index++)
     {
         *Target = 0;
 
@@ -143,7 +141,7 @@ LONG RtlProtectMemory(void* InPointer, ULONG InSize, ULONG InNewProtection)
     if (!VirtualProtect(InPointer, InSize, InNewProtection, &OldProtect))
         THROW(STATUS_INVALID_PARAMETER, L"Unable to make memory executable.")
     else
-        RETURN;
+        RETURN
 
 THROW_OUTRO:
 FINALLY_OUTRO:
@@ -152,7 +150,7 @@ FINALLY_OUTRO:
 
 void RtlFreeMemory(void* InPointer)
 {
-	ASSERT(InPointer != NULL,L"InPointer != NULL");
+	ASSERT(InPointer != NULL,L"InPointer != NULL")
 
 #ifdef _DEBUG
     free(InPointer);
@@ -166,12 +164,12 @@ LONG RtlInterlockedIncrement(LONG* RefValue)
     return InterlockedIncrement(RefValue);
 }
 
-BOOL RtlIsValidPointer(PVOID InPtr, ULONG InSize)
+BOOL RtlIsValidPointer(const void* InPtr, ULONG InSize)
 {
     if ((InPtr == NULL) || (InPtr == (PVOID)~0))
         return FALSE;
 
-    ASSERT(!IsBadReadPtr(InPtr, InSize),L"memory.c - !IsBadReadPtr(InPtr, InSize)");
+    ASSERT(!IsBadReadPtr(InPtr, InSize),L"memory.c - !IsBadReadPtr(InPtr, InSize)")
 
     return TRUE;
 }

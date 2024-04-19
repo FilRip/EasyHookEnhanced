@@ -152,7 +152,7 @@ Returns:
 		if (GetLastError() == ERROR_ACCESS_DENIED)
 		    THROW(STATUS_ACCESS_DENIED, L"Unable to open target process. Consider using a system service.")
 		else
-			THROW(STATUS_NOT_FOUND, L"The given target process does not exist!");
+			THROW(STATUS_NOT_FOUND, L"The given target process does not exist!")
 	}
 
 	/*
@@ -165,12 +165,12 @@ Returns:
 	FORCE(RhIsX64Process(InTargetPID, &Is64BitTarget));
       
     if (!Is64BitTarget)
-        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly operate through the WOW64 barrier.");
+        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly operate through the WOW64 barrier.")
 #else
 	FORCE(RhIsX64Process(InTargetPID, &Is64BitTarget));
       
     if (Is64BitTarget)
-        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly operate through the WOW64 barrier.");
+        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly operate through the WOW64 barrier.")
 #endif
 	
 
@@ -182,10 +182,10 @@ Returns:
 	NativeEntry.dwSize = sizeof(NativeEntry);
 
 	if ((hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)) == INVALID_HANDLE_VALUE)
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to enumerate system threads.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to enumerate system threads.")
 
 	if (!Thread32First(hThreadSnap, &NativeEntry)) 
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to get first thread in enumeration.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to get first thread in enumeration.")
 
 	do 
 	{ 
@@ -218,7 +218,7 @@ Returns:
 	}while(Thread32Next(hThreadSnap, &NativeEntry)); 
 
 	if (hHijackedThread == NULL)
-		THROW(STATUS_NOT_SUPPORTED, L"Unable to select active thread in target process.");
+		THROW(STATUS_NOT_SUPPORTED, L"Unable to select active thread in target process.")
 
 	DEBUGMSG(L"RhCreateStealthRemoteThread hijacked thread Id: %d\n", hijackedThreadId);
 
@@ -228,7 +228,7 @@ Returns:
 	Context.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
 
     if (!GetThreadContext(hHijackedThread, &Context))
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to capture remote thread context.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to capture remote thread context.")
 
 #ifdef _M_X64
 
@@ -284,7 +284,7 @@ Returns:
 
     if (!DuplicateHandle(GetCurrentProcess(), hCompletionEvent, hProc, &LocalCtx.hCompletionEvent, 0, FALSE, DUPLICATE_SAME_ACCESS) ||
 			!DuplicateHandle(GetCurrentProcess(), hSyncEvent, hProc, &LocalCtx.hSyncEvent, 0, FALSE, DUPLICATE_SAME_ACCESS))
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to duplicate event.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to duplicate event.")
 
 	/* 
 		Allocate executable stack.
@@ -303,7 +303,7 @@ Returns:
     __pragma(warning(disable:4305))
 #endif
     if (VirtualAllocEx(hProc, (PVOID)(LocalCtx.Rsp - 4096 * 20), 4096, MEM_COMMIT, PAGE_EXECUTE_READWRITE) == NULL)
-		THROW(STATUS_NO_MEMORY, L"Unable to allocate executable thread stack.");
+		THROW(STATUS_NO_MEMORY, L"Unable to allocate executable thread stack.")
     RemoteCtx = (STEALTH_CONTEXT*)(LocalCtx.Rsp - CtxSize - 4096 * 19);
 #if !_M_X64
     __pragma(warning(pop))
@@ -320,14 +320,14 @@ Returns:
 
 	// write remote stealth stub
 	if (!WriteProcessMemory(hProc, (UCHAR*)RemoteCtx + GetStealthStubSize(), &LocalCtx, sizeof(LocalCtx), &BytesRead))
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to write remote context.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to write remote context.")
 
 	if (!WriteProcessMemory(hProc, (UCHAR*)RemoteCtx, GetStealthStubPtr(), GetStealthStubSize(), &BytesRead))
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to write remote stealth stub.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to write remote stealth stub.")
 
 	// resume thread
     if (!SetThreadContext(hHijackedThread, &Context))
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to adjust remote thread context.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to adjust remote thread context.")
 
 	ResumeThread(hHijackedThread);
 
@@ -343,64 +343,62 @@ Returns:
 
     // wait for thread creation...
 	if (WaitForSingleObject(hSyncEvent, INFINITE) != WAIT_OBJECT_0)
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to wait for remote thread creation.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to wait for remote thread creation.")
 
 	// update local context
 	if (!ReadProcessMemory(hProc, (CHAR*)RemoteCtx + GetStealthStubSize(), &LocalCtx, sizeof(LocalCtx), &BytesRead))
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to re-read remote context.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to re-read remote context.")
 
 	if (LocalCtx.hRemoteThread == NULL)
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to create remote thread.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to create remote thread.")
 	
 	if (IsValidPointer(OutRemoteThread, sizeof(HANDLE)))
 	{
 		if (!DuplicateHandle(hProc, LocalCtx.hRemoteThread, GetCurrentProcess(), OutRemoteThread, 0, FALSE, DUPLICATE_SAME_ACCESS))
-			THROW(STATUS_INTERNAL_ERROR, L"Unable to import remote thread handle.");
+			THROW(STATUS_INTERNAL_ERROR, L"Unable to import remote thread handle.")
 	}
 
 	// let hijacked thread continue execution
 	if (!SetEvent(hCompletionEvent))
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to resume hijacked thread.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to resume hijacked thread.")
 
-    RETURN;
+    RETURN
 
 THROW_OUTRO:
 FINALLY_OUTRO:
-    {
-		if (hCompletionEvent != NULL)
-		{
-			// ensure that hijacked thread can continue exectuion...
-			SetEvent(hCompletionEvent);
+	if (hCompletionEvent != NULL)
+	{
+		// ensure that hijacked thread can continue exectuion...
+		SetEvent(hCompletionEvent);
 
-			CloseHandle(hCompletionEvent);
-		}
+		CloseHandle(hCompletionEvent);
+	}
 
-		if (hSyncEvent != NULL)
-			CloseHandle(hSyncEvent);
+	if (hSyncEvent != NULL)
+		CloseHandle(hSyncEvent);
 
-		if (hHijackedThread != NULL)
-		{
-			if (IsSuspended)
-				ResumeThread(hHijackedThread);
+	if (hHijackedThread != NULL)
+	{
+		if (IsSuspended)
+			ResumeThread(hHijackedThread);
 
-			CloseHandle(hHijackedThread);
-		}
+		CloseHandle(hHijackedThread);
+	}
        
-        if (hProc != NULL)
-            CloseHandle(hProc);
+    if (hProc != NULL)
+        CloseHandle(hProc);
 
-		if (hThreadSnap != INVALID_HANDLE_VALUE)
-			CloseHandle(hThreadSnap);
+	if (hThreadSnap != INVALID_HANDLE_VALUE)
+		CloseHandle(hThreadSnap);
 
-        return NtStatus;
-    }
+    return NtStatus;
 }
 
 
-/*/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////// GetStealthStubSize
 ///////////////////////////////////////////////////////////////////////////////////////
-
+/*
 Dynamically retrieves the size of the trampoline method.
 */
 static DWORD ___StealthStubSize = 0;

@@ -52,12 +52,6 @@ FINALLY_OUTRO:
     return NtStatus;
 }
 
-
-
-
-
-
-
 EASYHOOK_NT_EXPORT RhWakeUpProcess()
 {
 /*
@@ -85,12 +79,10 @@ Description:
     
 THROW_OUTRO:
 FINALLY_OUTRO:
-    {
-        if (hThread != NULL)
-            CloseHandle(hThread);
+    if (hThread != NULL)
+        CloseHandle(hThread);
 
-        return NtStatus;
-    }
+    return NtStatus;
 }
 
 
@@ -140,12 +132,10 @@ Parameters:
 
 THROW_OUTRO:
 FINALLY_OUTRO:
-    {
-		if (hProc != NULL)
-			CloseHandle(hProc);
+	if (hProc != NULL)
+		CloseHandle(hProc);
 
-        return NtStatus;
-	}
+    return NtStatus;
 }
 
 
@@ -296,7 +286,7 @@ EASYHOOK_NT_INTERNAL NtForceLdrInitializeThunk(HANDLE hProc)
 	*/
 	HANDLE                  hRemoteThread = NULL;
 	UCHAR*                  RemoteInjectCode = NULL;
-	BYTE                    InjectCode[3];
+    BYTE                    InjectCode[3];
 	ULONG                   CodeSize;
 	SIZE_T                  BytesWritten;
 	NTSTATUS                NtStatus;
@@ -388,7 +378,7 @@ Parameters:
 #ifdef _M_X64
 	// if the target is not WOW64, then it is 64-bit
 	if (!pIsWow64Process(hProc, &IsTarget64Bit))
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to detect wether target process is 64-bit or not.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to detect wether target process is 64-bit or not.")
 
 	IsTarget64Bit = !IsTarget64Bit;
 
@@ -423,12 +413,10 @@ Parameters:
 
 THROW_OUTRO:
 FINALLY_OUTRO:
-    {
-		if (hProc != NULL)
-			CloseHandle(hProc);
+	if (hProc != NULL)
+		CloseHandle(hProc);
 
-        return NtStatus;
-	}
+    return NtStatus;
 }
 
 #ifndef _DEBUG
@@ -682,15 +670,13 @@ Parameters:
     RETURN
 
 THROW_OUTRO:
+    if (ProcessId != 0)
     {
-        if (ProcessId != 0)
-        {
-            hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, ProcessId);
+        hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, ProcessId);
             
-            TerminateProcess(hProcess, 0);
+        TerminateProcess(hProcess, 0);
 
-            CloseHandle(hProcess);
-        }
+        CloseHandle(hProcess);
     }
 FINALLY_OUTRO:
     return NtStatus;
@@ -1187,10 +1173,10 @@ Returns:
 	FORCE(RhIsX64Process(InTargetPID, &Is64BitTarget));
       
     if (!Is64BitTarget)
-        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly hook through the WOW64 barrier.");
+        THROW(STATUS_WOW_ASSERTION, L"It is not supported to directly hook through the WOW64 barrier.")
 
     if (!GetFullPathNameW(InLibraryPath_x64, MAX_PATH, UserLibrary, NULL))
-        THROW(STATUS_INVALID_PARAMETER_5, L"Unable to get full path to the given 64-bit library.");
+        THROW(STATUS_INVALID_PARAMETER_5, L"Unable to get full path to the given 64-bit library.")
 #else
 	FORCE(RhIsX64Process(InTargetPID, &Is64BitTarget))
       
@@ -1260,7 +1246,7 @@ Returns:
 	Info->EasyHookEntry = (char*)Offset;
 	Info->EasyHookPath = (wchar_t*)(Offset += EasyHookEntrySize);
 	Info->PATH = (wchar_t*)(Offset += EasyHookPathSize);
-	Info->UserData = (BYTE*)(Offset += PATHSize);
+	Info->UserData = (Offset += PATHSize);
     Info->UserLibrary = (WCHAR*)(Offset += InPassThruSize);
 
 	Info->Size = RemoteInfoSize;
@@ -1307,7 +1293,7 @@ Returns:
     Info->UserLibrary = (wchar_t*)(((BYTE*)Info->UserLibrary) + Diff);
 
 	if (Info->UserData != NULL)
-		Info->UserData = (BYTE*)(((BYTE*)Info->UserData) + Diff);
+		Info->UserData = ((Info->UserData) + Diff);
 
 	Info->RemoteEntryPoint = RemoteInjectCode;
 
@@ -1359,11 +1345,11 @@ Returns:
 				{
 #ifdef _M_X64
                 case 20:
-                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to load the given 64-bit library into target process.");
+                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to load the given 64-bit library into target process.")
                 case 21:
-                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required native entry point in the given 64-bit library.");
+                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required native entry point in the given 64-bit library.")
                 case 12:
-                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required managed entry point in the given 64-bit library.");
+                    THROW(STATUS_INVALID_PARAMETER_5, L"Unable to find the required managed entry point in the given 64-bit library.")
 #else
                 case 20:
                     THROW(STATUS_INVALID_PARAMETER_4, L"Unable to load the given 32-bit library into target process.")
@@ -1477,13 +1463,6 @@ ULONG GetInjectionSize()
 
     return 0;
 }
-
-
-
-
-
-
-
 
 EASYHOOK_NT_EXPORT TestFuncHooks(ULONG pId, 
         PCHAR module,
@@ -1824,7 +1803,7 @@ Returns:
                 sprintf_s(result->EntryDisasm + strlen(result->EntryDisasm), 1024 - strlen(result->EntryDisasm), "%-35s%-30sIP:%x\n", asmBuf, buf, nextInstr);
                 a++;
 
-                pEntryPoint = (DWORD_PTR)nextInstr;
+                pEntryPoint = nextInstr;
             }
             
             continue;
@@ -1840,7 +1819,7 @@ Returns:
         {
             pEntryPoint = dwAddressOfFunction;
             memset(asmBuf, 0, MAX_PATH);
-            while ((pEntryPoint - (DWORD_PTR)dwAddressOfFunction < entryPointSize) && RTL_SUCCESS(LhDisassembleInstruction((void*)pEntryPoint, &asmLength, buf, MAX_PATH, &nextInstr)))
+            while ((pEntryPoint - dwAddressOfFunction < entryPointSize) && RTL_SUCCESS(LhDisassembleInstruction((void*)pEntryPoint, &asmLength, buf, MAX_PATH, &nextInstr)))
             {
                 opcodes = (PUCHAR)pEntryPoint;
                 sprintf_s(asmBuf, 260, "\t");
@@ -1850,7 +1829,7 @@ Returns:
                     opcodes++;
                 }
                 sprintf_s(result->EntryDisasm + strlen(result->EntryDisasm), 1024 - strlen(result->EntryDisasm), "%-35s%-30sIP:%x\n", asmBuf, buf, nextInstr);
-                pEntryPoint = (DWORD_PTR)nextInstr;
+                pEntryPoint = nextInstr;
             }
             pEntryPoint = (DWORD_PTR)hookBuf->OldProc;
             result->RelocAddress = (void*)pEntryPoint;
@@ -1865,7 +1844,7 @@ Returns:
                     opcodes++;
                 }
                 sprintf_s(result->RelocDisasm + strlen(result->RelocDisasm), 1024 - strlen(result->RelocDisasm), "%-35s%-30sIP:%x\n", asmBuf, buf, nextInstr);
-                pEntryPoint = (DWORD_PTR)nextInstr;
+                pEntryPoint = nextInstr;
             }
         }
         

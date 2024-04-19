@@ -71,12 +71,11 @@ Returns:
 	SC_HANDLE			hService = NULL;
     NTSTATUS            NtStatus;
     LPCWSTR		        StartParams[1] = {InChannelName};
-    ULONG               res;
 	ULONG				inExePathLength;
 	WCHAR*				quotedInExePath;
 
 	if ((hSCManager = OpenSCManagerW(NULL, NULL, SC_MANAGER_ALL_ACCESS)) == NULL)
-		THROW(STATUS_ACCESS_DENIED, L"Unable to open service control manager. Check for administrator privileges!");
+		THROW(STATUS_ACCESS_DENIED, L"Unable to open service control manager. Check for administrator privileges!")
 
 	/* 
         Does service exist?
@@ -88,7 +87,7 @@ Returns:
 	if ((hService = OpenService(hSCManager, InServiceName, SERVICE_ALL_ACCESS)) == NULL)
 	{
 		if (GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST)
-			THROW(STATUS_INTERNAL_ERROR, L"Unable to open already registered service.");
+			THROW(STATUS_INTERNAL_ERROR, L"Unable to open already registered service.")
 	}
 	else
 	{
@@ -98,13 +97,13 @@ Returns:
 
         hService = NULL;
 
-        THROW(STATUS_ALREADY_REGISTERED, L"The service is already registered. Use the service control manager to remove it!");
+        THROW(STATUS_ALREADY_REGISTERED, L"The service is already registered. Use the service control manager to remove it!")
 	}
 
 	// quote InExePath 	
 	inExePathLength = RtlUnicodeLength(InExePath);	
 	if ((quotedInExePath = (WCHAR *)RtlAllocateMemory(TRUE,(inExePathLength+3)*sizeof(WCHAR)))==NULL)		
-		THROW(STATUS_NO_MEMORY, L"Unable to allocate memory to perform a string quote.");
+		THROW(STATUS_NO_MEMORY, L"Unable to allocate memory to perform a string quote.")
 
 	RtlCopyMemory(quotedInExePath,InExePath,inExePathLength*sizeof(WCHAR));
 	PathQuoteSpacesW(quotedInExePath);
@@ -124,31 +123,27 @@ Returns:
 	RtlFreeMemory(quotedInExePath);
 
 	if (hService == NULL)
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to install service as system process.");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to install service as system process.")
 
     // start service
 	if (!StartServiceW(hService, 1, (LPCWSTR*)StartParams))
     {
-        res = GetLastError();
-
-        THROW(STATUS_INTERNAL_ERROR, L"Unable to start service.");
+        THROW(STATUS_INTERNAL_ERROR, L"Unable to start service.")
     }
 
     RETURN(STATUS_SUCCESS);
 
 THROW_OUTRO:
 FINALLY_OUTRO:
+	if (hService != NULL)
 	{
-		if (hService != NULL)
-		{
-			DeleteService(hService);
+		DeleteService(hService);
 
-			CloseServiceHandle(hService);
-		}
-
-		if (hSCManager != NULL)
-			CloseServiceHandle(hSCManager);
-
-        return NtStatus;
+		CloseServiceHandle(hService);
 	}
+
+	if (hSCManager != NULL)
+		CloseServiceHandle(hSCManager);
+
+    return NtStatus;
 }

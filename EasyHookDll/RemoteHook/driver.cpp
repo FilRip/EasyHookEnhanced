@@ -47,66 +47,66 @@ Parameters:
 
 */   
 	WCHAR				DriverPath[MAX_PATH + 1];
-	SC_HANDLE			hSCManager = NULL;
-	SC_HANDLE			hService = NULL;	
+	SC_HANDLE			hSCManager = nullptr;
+	SC_HANDLE			hService = nullptr;
 	NTSTATUS			NtStatus;
 
-	GetFullPathNameW(InDriverPath, MAX_PATH, DriverPath, NULL);
+	GetFullPathNameW(InDriverPath, MAX_PATH, DriverPath, nullptr);
 
 	if (!RtlFileExists(DriverPath))
-		THROW(STATUS_NOT_FOUND, L"The EasyHook driver file does not exist.");
+		THROW(STATUS_NOT_FOUND, L"The EasyHook driver file does not exist.")
 
 	if ((hSCManager = OpenSCManagerW(
-			NULL, 
-			NULL, 
-			SC_MANAGER_ALL_ACCESS)) == NULL)
-		THROW(STATUS_ACCESS_DENIED, L"Unable to open service control manager. Are you running as administrator?");
+			nullptr, 
+		nullptr,
+			SC_MANAGER_ALL_ACCESS)) == nullptr)
+		THROW(STATUS_ACCESS_DENIED, L"Unable to open service control manager. Are you running as administrator?")
 
 	// does service exist?
 	if ((hService = OpenService(
 			hSCManager, 
 			InDriverName, 
-			SERVICE_ALL_ACCESS)) == NULL)
+			SERVICE_ALL_ACCESS)) == nullptr)
 	{
 		if (GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST)
-			THROW(STATUS_INTERNAL_ERROR, L"An unknown error has occurred during driver installation.");
+
+			THROW(STATUS_INTERNAL_ERROR, L"An unknown error has occurred during driver installation.")
 
 		// Create the service
 		if ((hService = CreateServiceW(
-				hSCManager,              
-				InDriverName,            
-				InDriverName,           
-				SERVICE_ALL_ACCESS,        
-				SERVICE_KERNEL_DRIVER,
-				SERVICE_DEMAND_START,    
-				SERVICE_ERROR_NORMAL,     
-				DriverPath,            
-				NULL, NULL, NULL, NULL, NULL)) == NULL)
-			THROW(STATUS_INTERNAL_ERROR, L"Unable to install driver.");
+			hSCManager,
+			InDriverName,
+			InDriverName,
+			SERVICE_ALL_ACCESS,
+			SERVICE_KERNEL_DRIVER,
+			SERVICE_DEMAND_START,
+			SERVICE_ERROR_NORMAL,
+			DriverPath,
+			nullptr, nullptr, nullptr, nullptr, nullptr)) == nullptr)
+
+			THROW(STATUS_INTERNAL_ERROR, L"Unable to install driver.")
 	}
 
 	// start and connect service...
-	if (!StartServiceW(hService, 0, NULL) && (GetLastError() != ERROR_SERVICE_ALREADY_RUNNING)
+	if (!StartServiceW(hService, 0, nullptr) && (GetLastError() != ERROR_SERVICE_ALREADY_RUNNING)
 			&& (GetLastError() != ERROR_SERVICE_DISABLED))
-		THROW(STATUS_INTERNAL_ERROR, L"Unable to start driver!");
+		THROW(STATUS_INTERNAL_ERROR, L"Unable to start driver!")
 
-	RETURN;
+	RETURN
 	
 THROW_OUTRO:
 FINALLY_OUTRO:
+	if (hService != nullptr)
 	{
-		if (hService != NULL)
-		{
-			DeleteService(hService);
+		DeleteService(hService);
 
-			CloseServiceHandle(hService);
-		}
-
-		if (hSCManager != NULL)
-			CloseServiceHandle(hSCManager);
-
-		return NtStatus;
+		CloseServiceHandle(hService);
 	}
+
+	if (hSCManager != nullptr)
+		CloseServiceHandle(hSCManager);
+
+	return NtStatus;
 }
 
 EASYHOOK_NT_EXPORT RhInstallSupportDriver()
