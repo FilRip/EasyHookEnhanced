@@ -26,97 +26,96 @@
 using System.IO;
 using System.Threading;
 
-namespace EasyHook
+namespace EasyHook;
+
+internal static class ServiceMgmt
 {
-    internal static class ServiceMgmt
-    {
 #pragma warning disable IDE0052, S4487 // Supprimer les membres privés non lus
-        private static Mutex m_TermMutex = null;
+    private static Mutex m_TermMutex = null;
 #pragma warning restore IDE0052, S4487 // Supprimer les membres privés non lus
-        private static HelperServiceInterface m_Interface = null;
-        private static readonly object ThreadSafe = new();
+    private static HelperServiceInterface m_Interface = null;
+    private static readonly object ThreadSafe = new();
 
-        private static void Install()
+    private static void Install()
+    {
+        lock (ThreadSafe)
         {
-            lock (ThreadSafe)
+            // Ensure we create a new one if the existing
+            // channel cannot be pinged
+            try
             {
-                // Ensure we create a new one if the existing
-                // channel cannot be pinged
-                try
+                m_Interface?.Ping();
+            }
+            catch
+            {
+                m_Interface = null;
+            }
+
+            if (m_Interface == null)
+            {
+                // create sync objects
+                string ChannelName = RemoteHooking.GenerateName();
+                EventWaitHandle Listening = new(
+                    false,
+                    EventResetMode.ManualReset,
+                    "Global\\Event_" + ChannelName);
+                Mutex TermMutex = new(true, "Global\\Mutex_" + ChannelName);
+
+                using (TermMutex)
                 {
-                    m_Interface?.Ping();
-                }
-                catch
-                {
-                    m_Interface = null;
-                }
+                    // install and start service
+                    NativeApi.RtlInstallService(
+                        "EasyHook" + (NativeApi.Is64Bit ? "64" : "32") + "Svc",
+                        Path.GetFullPath(Config.GetDependantSvcExecutableName()),
+                        ChannelName);
 
-                if (m_Interface == null)
-                {
-                    // create sync objects
-                    string ChannelName = RemoteHooking.GenerateName();
-                    EventWaitHandle Listening = new(
-                        false,
-                        EventResetMode.ManualReset,
-                        "Global\\Event_" + ChannelName);
-                    Mutex TermMutex = new(true, "Global\\Mutex_" + ChannelName);
+                    if (!Listening.WaitOne(5000, true))
+                        throw new EasyHookException("Unable to wait for service startup.");
 
-                    using (TermMutex)
-                    {
-                        // install and start service
-                        NativeApi.RtlInstallService(
-                            "EasyHook" + (NativeApi.Is64Bit ? "64" : "32") + "Svc",
-                            Path.GetFullPath(Config.GetDependantSvcExecutableName()),
-                            ChannelName);
+                    HelperServiceInterface Interface = RemoteHooking.IpcConnectClient<HelperServiceInterface>(ChannelName);
 
-                        if (!Listening.WaitOne(5000, true))
-                            throw new EasyHookException("Unable to wait for service startup.");
+                    Interface.Ping();
 
-                        HelperServiceInterface Interface = RemoteHooking.IpcConnectClient<HelperServiceInterface>(ChannelName);
-
-                        Interface.Ping();
-
-                        // now we can be sure that all things are fine...
-                        m_Interface = Interface;
-                        m_TermMutex = TermMutex;
-                    }
+                    // now we can be sure that all things are fine...
+                    m_Interface = Interface;
+                    m_TermMutex = TermMutex;
                 }
             }
         }
+    }
 
-        public static void Inject(
-            int InHostPID,
-            int InTargetPID,
-            int InWakeUpTID,
-            int InNativeOptions,
-            string InLibraryPath_x86,
-            string InLibraryPath_x64,
-            bool InRequireStrongName,
-            params object[] InPassThruArgs)
-        {
-            Install();
+    public static void Inject(
+        int InHostPID,
+        int InTargetPID,
+        int InWakeUpTID,
+        int InNativeOptions,
+        string InLibraryPath_x86,
+        string InLibraryPath_x64,
+        bool InRequireStrongName,
+        params object[] InPassThruArgs)
+    {
+        Install();
 
-            m_Interface.InjectEx(
-                InHostPID,
-                InTargetPID,
-                InWakeUpTID,
-                InNativeOptions,
-                InLibraryPath_x86,
-                InLibraryPath_x64,
-                false,
-                false,
-                InRequireStrongName,
-                false,
-                InPassThruArgs);
-        }
+        m_Interface.InjectEx(
+            InHostPID,
+            InTargetPID,
+            InWakeUpTID,
+            InNativeOptions,
+            InLibraryPath_x86,
+            InLibraryPath_x64,
+            false,
+            false,
+            InRequireStrongName,
+            false,
+            InPassThruArgs);
+    }
 
-        public static object ExecuteAsService<TClass>(
-                string InMethodName,
-                params object[] InParams)
-        {
-            Install();
+    public static object ExecuteAsService<TClass>(
+            string InMethodName,
+            params object[] InParams)
+    {
+        Install();
 
-            return m_Interface.ExecuteAsService<TClass>(InMethodName, InParams);
-        }
+        return m_Interface.ExecuteAsService<TClass>(InMethodName, InParams);
     }
 }

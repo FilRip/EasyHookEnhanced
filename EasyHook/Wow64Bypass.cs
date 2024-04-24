@@ -26,92 +26,91 @@
 using System.Diagnostics;
 using System.Threading;
 
-namespace EasyHook
+namespace EasyHook;
+
+internal static class Wow64Bypass
 {
-    internal static class Wow64Bypass
-    {
 #pragma warning disable IDE0052, S4487 // Supprimer les membres privés non lus
-        private static Mutex m_TermMutex = null;
+    private static Mutex m_TermMutex = null;
 #pragma warning restore IDE0052, S4487 // Supprimer les membres privés non lus
-        private static HelperServiceInterface m_Interface = null;
-        private static readonly object ThreadSafe = new();
+    private static HelperServiceInterface m_Interface = null;
+    private static readonly object ThreadSafe = new();
 
-        private static void Install()
+    private static void Install()
+    {
+        lock (ThreadSafe)
         {
-            lock (ThreadSafe)
+            // Ensure we create a new one if the existing
+            // channel cannot be pinged
+            try
             {
-                // Ensure we create a new one if the existing
-                // channel cannot be pinged
-                try
-                {
-                    m_Interface?.Ping();
-                }
-                catch
-                {
-                    m_Interface = null;
-                }
+                m_Interface?.Ping();
+            }
+            catch
+            {
+                m_Interface = null;
+            }
 
-                if (m_Interface == null)
-                {
-                    string ChannelName = RemoteHooking.GenerateName();
-                    string SvcExecutablePath = (Config.DependencyPath.Length > 0 ? Config.DependencyPath : Config.GetProcessPath()) + Config.GetWOW64BypassExecutableName();
+            if (m_Interface == null)
+            {
+                string ChannelName = RemoteHooking.GenerateName();
+                string SvcExecutablePath = (Config.DependencyPath.Length > 0 ? Config.DependencyPath : Config.GetProcessPath()) + Config.GetWOW64BypassExecutableName();
 
-                    Process Proc = new();
-                    ProcessStartInfo StartInfo = new(
-                            SvcExecutablePath, "\"" + ChannelName + "\"");
+                Process Proc = new();
+                ProcessStartInfo StartInfo = new(
+                        SvcExecutablePath, "\"" + ChannelName + "\"");
 
-                    // create sync objects
-                    EventWaitHandle Listening = new(
-                        false,
-                        EventResetMode.ManualReset,
-                        "Global\\Event_" + ChannelName);
+                // create sync objects
+                EventWaitHandle Listening = new(
+                    false,
+                    EventResetMode.ManualReset,
+                    "Global\\Event_" + ChannelName);
 
-                    m_TermMutex = new Mutex(true, "Global\\Mutex_" + ChannelName);
+                m_TermMutex = new Mutex(true, "Global\\Mutex_" + ChannelName);
 
-                    // start and connect program
-                    StartInfo.CreateNoWindow = true;
-                    StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                // start and connect program
+                StartInfo.CreateNoWindow = true;
+                StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
-                    Proc.StartInfo = StartInfo;
+                Proc.StartInfo = StartInfo;
 
-                    Proc.Start();
+                Proc.Start();
 
-                    if (!Listening.WaitOne(5000, true))
-                        throw new EasyHookException("Unable to wait for service application due to timeout.");
+                if (!Listening.WaitOne(5000, true))
+                    throw new EasyHookException("Unable to wait for service application due to timeout.");
 
-                    HelperServiceInterface Interface = RemoteHooking.IpcConnectClient<HelperServiceInterface>(ChannelName);
+                HelperServiceInterface Interface = RemoteHooking.IpcConnectClient<HelperServiceInterface>(ChannelName);
 
-                    Interface.Ping();
+                Interface.Ping();
 
-                    m_Interface = Interface;
-                }
+                m_Interface = Interface;
             }
         }
+    }
 
-        public static void Inject(
-            int InHostPID,
-            int InTargetPID,
-            int InWakeUpTID,
-            int InNativeOptions,
-            string InLibraryPath_x86,
-            string InLibraryPath_x64,
-            bool InRequireStrongName,
-            params object[] InPassThruArgs)
-        {
-            Install();
+    public static void Inject(
+        int InHostPID,
+        int InTargetPID,
+        int InWakeUpTID,
+        int InNativeOptions,
+        string InLibraryPath_x86,
+        string InLibraryPath_x64,
+        bool InRequireStrongName,
+        params object[] InPassThruArgs)
+    {
+        Install();
 
-            m_Interface.InjectEx(
-                InHostPID,
-                InTargetPID,
-                InWakeUpTID,
-                InNativeOptions,
-                InLibraryPath_x86,
-                InLibraryPath_x64,
-                false,
-                true,
-                InRequireStrongName,
-                false,
-                InPassThruArgs);
-        }
+        m_Interface.InjectEx(
+            InHostPID,
+            InTargetPID,
+            InWakeUpTID,
+            InNativeOptions,
+            InLibraryPath_x86,
+            InLibraryPath_x64,
+            false,
+            true,
+            InRequireStrongName,
+            false,
+            InPassThruArgs);
     }
 }

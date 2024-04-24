@@ -6,21 +6,13 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestInjectNet", "TestInjectNet\TestInjectNet.csproj", "{D4AE12AA-B0B4-4946-8A41-22B630F8261D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{A563904A-09F4-40AB-AE16-9EC9B488EAE5} = {A563904A-09F4-40AB-AE16-9EC9B488EAE5}
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F} = {B9A68E47-237F-4045-A371-D5CCEB896F7F}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToInject", "ToInject\ToInject.csproj", "{FA91F1F8-005A-4F4C-BBD9-EA3BCEACFC45}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyLoad", "EasyLoad\EasyLoad.csproj", "{A563904A-09F4-40AB-AE16-9EC9B488EAE5}"
-	ProjectSection(ProjectDependencies) = postProject
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D} = {D087E484-DBC9-4A2E-8368-C1D0E524994D}
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyHook", "EasyHook\EasyHook.csproj", "{AB53862B-3B5C-4EFC-9787-1F01199EBFBF}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EasyHookSvc", "EasyHookSvc\EasyHookSvc.csproj", "{B9A68E47-237F-4045-A371-D5CCEB896F7F}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EasyHookDll", "EasyHookDll\EasyHookDll.vcxproj", "{D087E484-DBC9-4A2E-8368-C1D0E524994D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -62,22 +54,6 @@ Global
 		{AB53862B-3B5C-4EFC-9787-1F01199EBFBF}.Release|x64.Build.0 = Release|Any CPU
 		{AB53862B-3B5C-4EFC-9787-1F01199EBFBF}.Release|x86.ActiveCfg = Release|Any CPU
 		{AB53862B-3B5C-4EFC-9787-1F01199EBFBF}.Release|x86.Build.0 = Release|Any CPU
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Debug|x64.ActiveCfg = Debug|x64
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Debug|x64.Build.0 = Debug|x64
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Debug|x86.ActiveCfg = Debug|x86
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Debug|x86.Build.0 = Debug|x86
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Release|x64.ActiveCfg = Release|x64
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Release|x64.Build.0 = Release|x64
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Release|x86.ActiveCfg = Release|x86
-		{B9A68E47-237F-4045-A371-D5CCEB896F7F}.Release|x86.Build.0 = Release|x86
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Debug|x64.ActiveCfg = Debug|x64
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Debug|x64.Build.0 = Debug|x64
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Debug|x86.ActiveCfg = Debug|Win32
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Debug|x86.Build.0 = Debug|Win32
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Release|x64.ActiveCfg = Release|x64
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Release|x64.Build.0 = Release|x64
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Release|x86.ActiveCfg = Release|Win32
-		{D087E484-DBC9-4A2E-8368-C1D0E524994D}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

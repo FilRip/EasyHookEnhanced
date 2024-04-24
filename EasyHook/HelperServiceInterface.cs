@@ -28,136 +28,135 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 
-namespace EasyHook
+namespace EasyHook;
+
+public class HelperServiceInterface : MarshalByRefObject
 {
-    public class HelperServiceInterface : MarshalByRefObject
+    public void InjectEx(
+            int InHostPID,
+            int InTargetPID,
+            int InWakeUpTID,
+            int InNativeOptions,
+            string InLibraryPath_x86,
+            string InLibraryPath_x64,
+            bool InCanBypassWOW64,
+            bool InCanCreateService,
+            bool InRequireStrongName,
+            bool sameAppDomain,
+            params object[] InPassThruArgs)
     {
-        public void InjectEx(
-                int InHostPID,
-                int InTargetPID,
-                int InWakeUpTID,
-                int InNativeOptions,
-                string InLibraryPath_x86,
-                string InLibraryPath_x64,
-                bool InCanBypassWOW64,
-                bool InCanCreateService,
-                bool InRequireStrongName,
-                bool sameAppDomain,
-                params object[] InPassThruArgs)
+        RemoteHooking.InjectEx(
+            InHostPID,
+            InTargetPID,
+            InWakeUpTID,
+            InNativeOptions,
+            InLibraryPath_x86,
+            InLibraryPath_x64,
+            InCanBypassWOW64,
+            InCanCreateService,
+            InRequireStrongName,
+            sameAppDomain,
+            InPassThruArgs);
+    }
+
+    public object ExecuteAsService<TClass>(
+            string InMethodName,
+            object[] InParams)
+    {
+        return typeof(TClass).InvokeMember(InMethodName, BindingFlags.InvokeMethod | BindingFlags.Public |
+            BindingFlags.Static, null, null, InParams);
+    }
+
+    private sealed class InjectionWait
+    {
+        public Mutex ThreadLock = new(false);
+        public ManualResetEvent Completion = new(false);
+        public Exception Error = null;
+    }
+
+    private static readonly SortedList<int, InjectionWait> InjectionList = [];
+
+    public static void BeginInjection(int InTargetPID)
+    {
+        InjectionWait WaitInfo;
+
+        lock (InjectionList)
         {
-            RemoteHooking.InjectEx(
-                InHostPID,
-                InTargetPID,
-                InWakeUpTID,
-                InNativeOptions,
-                InLibraryPath_x86,
-                InLibraryPath_x64,
-                InCanBypassWOW64,
-                InCanCreateService,
-                InRequireStrongName,
-                sameAppDomain,
-                InPassThruArgs);
-        }
-
-        public object ExecuteAsService<TClass>(
-                string InMethodName,
-                object[] InParams)
-        {
-            return typeof(TClass).InvokeMember(InMethodName, BindingFlags.InvokeMethod | BindingFlags.Public |
-                BindingFlags.Static, null, null, InParams);
-        }
-
-        private sealed class InjectionWait
-        {
-            public Mutex ThreadLock = new(false);
-            public ManualResetEvent Completion = new(false);
-            public Exception Error = null;
-        }
-
-        private static readonly SortedList<int, InjectionWait> InjectionList = [];
-
-        public static void BeginInjection(int InTargetPID)
-        {
-            InjectionWait WaitInfo;
-
-            lock (InjectionList)
+            if (!InjectionList.TryGetValue(InTargetPID, out WaitInfo))
             {
-                if (!InjectionList.TryGetValue(InTargetPID, out WaitInfo))
-                {
-                    WaitInfo = new InjectionWait();
+                WaitInfo = new InjectionWait();
 
-                    InjectionList.Add(InTargetPID, WaitInfo);
-                }
-            }
-
-            WaitInfo.ThreadLock.WaitOne();
-            WaitInfo.Error = null;
-            WaitInfo.Completion.Reset();
-
-            lock (InjectionList)
-            {
-                if (!InjectionList.ContainsKey(InTargetPID))
-                    InjectionList.Add(InTargetPID, WaitInfo);
+                InjectionList.Add(InTargetPID, WaitInfo);
             }
         }
 
-        public static void EndInjection(int InTargetPID)
-        {
-            lock (InjectionList)
-            {
-                InjectionList[InTargetPID].ThreadLock.ReleaseMutex();
+        WaitInfo.ThreadLock.WaitOne();
+        WaitInfo.Error = null;
+        WaitInfo.Completion.Reset();
 
-                InjectionList.Remove(InTargetPID);
-            }
+        lock (InjectionList)
+        {
+            if (!InjectionList.ContainsKey(InTargetPID))
+                InjectionList.Add(InTargetPID, WaitInfo);
+        }
+    }
+
+    public static void EndInjection(int InTargetPID)
+    {
+        lock (InjectionList)
+        {
+            InjectionList[InTargetPID].ThreadLock.ReleaseMutex();
+
+            InjectionList.Remove(InTargetPID);
+        }
+    }
+
+    public static void WaitForInjection(int InTargetPID)
+    {
+        InjectionWait WaitInfo;
+
+        lock (InjectionList)
+        {
+            WaitInfo = InjectionList[InTargetPID];
         }
 
-        public static void WaitForInjection(int InTargetPID)
+        if (!WaitInfo.Completion.WaitOne(20000, false))
+            throw new TimeoutException("Unable to wait for injection completion.");
+
+        if (WaitInfo.Error != null)
+            throw WaitInfo.Error;
+    }
+
+    public void InjectionException(
+        int InClientPID,
+        Exception e)
+    {
+        InjectionWait WaitInfo;
+
+        lock (InjectionList)
         {
-            InjectionWait WaitInfo;
-
-            lock (InjectionList)
-            {
-                WaitInfo = InjectionList[InTargetPID];
-            }
-
-            if (!WaitInfo.Completion.WaitOne(20000, false))
-                throw new TimeoutException("Unable to wait for injection completion.");
-
-            if (WaitInfo.Error != null)
-                throw WaitInfo.Error;
+            WaitInfo = InjectionList[InClientPID];
         }
 
-        public void InjectionException(
-            int InClientPID,
-            Exception e)
+        WaitInfo.Error = e;
+        WaitInfo.Completion.Set();
+    }
+
+    public void InjectionCompleted(int InClientPID)
+    {
+        InjectionWait WaitInfo;
+
+        lock (InjectionList)
         {
-            InjectionWait WaitInfo;
-
-            lock (InjectionList)
-            {
-                WaitInfo = InjectionList[InClientPID];
-            }
-
-            WaitInfo.Error = e;
-            WaitInfo.Completion.Set();
+            WaitInfo = InjectionList[InClientPID];
         }
 
-        public void InjectionCompleted(int InClientPID)
-        {
-            InjectionWait WaitInfo;
+        WaitInfo.Error = null;
+        WaitInfo.Completion.Set();
+    }
 
-            lock (InjectionList)
-            {
-                WaitInfo = InjectionList[InClientPID];
-            }
-
-            WaitInfo.Error = null;
-            WaitInfo.Completion.Set();
-        }
-
-        public void Ping()
-        {
-            // Nothing to do
-        }
+    public void Ping()
+    {
+        // Nothing to do
     }
 }

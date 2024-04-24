@@ -69,7 +69,7 @@ private static void OnProcessUpdate(Object InCallback)
     }
 }
 
-[Serializable]
+[Serializable()]
 public class ProcessInfo
 {
     public String FileName;
