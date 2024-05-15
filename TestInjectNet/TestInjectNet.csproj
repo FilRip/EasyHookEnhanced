@@ -53,6 +53,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\EasyHookSvc\EasyHookSvc.csproj">
+      <Project>{b9a68e47-237f-4045-a371-d5cceb896f7f}</Project>
+      <Name>EasyHookSvc</Name>
+    </ProjectReference>
     <ProjectReference Include="..\EasyHook\EasyHook.csproj">
       <Project>{ab53862b-3b5c-4efc-9787-1f01199ebfbf}</Project>
       <Name>EasyHook</Name>
